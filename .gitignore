@@ -21,3 +21,8 @@ env/
 venv/
 pip-freeze.txt
 pipenv.lock
+*.pyc
+__pycache__/
+.env
+data/
+logs/
