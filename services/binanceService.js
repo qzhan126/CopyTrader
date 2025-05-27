@@ -10,22 +10,30 @@ async function fetchTradeHistory(portfolioId, page = 1, pageSize = 100) {
     logger.error('BNS_UUID is not configured.');
     throw new Error('BNS_UUID is not configured.');
   }
-  logger.info(`Fetching trade history for portfolioId: ${portfolioId}, page: ${page}, pageSize: ${pageSize}`);
+  logger.info(`Fetching trade history for portfolioId: ${portfolioId}, pageNumber: ${page}, pageSize: ${pageSize}`);
   try {
-    const response = await axios.post(API_ENDPOINT, 
-      { portfolioId: String(portfolioId), page: Number(page), pageSize: Number(pageSize), tradeType: "ALL" },
+    const payload = {
+      portfolioId: String(portfolioId),
+      pageNumber: Number(page), // Changed from page to pageNumber
+      pageSize: Number(pageSize),
+      tradeType: "ALL"
+    };
+    // The subtask for time-windowed fetching will add startTime and endTime to this payload.
+    // For now, this is the correct structure based on the current subtask.
+
+    const response = await axios.post(API_ENDPOINT, payload,
       { headers: { 'bns-uuid': BNS_UUID, 'Content-Type': 'application/json' } }
     );
 
     if (response.data && response.data.code === "000000") {
-      logger.info(`Successfully fetched ${response.data.data.list.length} trades for portfolioId: ${portfolioId}, page: ${page}. Total items: ${response.data.data.total}`);
+      logger.info(`Successfully fetched ${response.data.data.list.length} trades for portfolioId: ${portfolioId}, pageNumber: ${page}. Total items: ${response.data.data.total}`);
       return response.data.data; // Contains list and total
     } else {
-      logger.error(`API error for portfolioId ${portfolioId}, page ${page}: ${response.data.message || 'Unknown API error'}`, response.data);
+      logger.error(`API error for portfolioId ${portfolioId}, pageNumber: ${page}: ${response.data.message || 'Unknown API error'}`, response.data);
       throw new Error(`Binance API error: ${response.data.message || 'Unknown error'}`);
     }
   } catch (error) {
-    logger.error(`Failed to fetch trade history for portfolioId ${portfolioId}, page ${page}: ${error.message}`, { stack: error.stack });
+    logger.error(`Failed to fetch trade history for portfolioId ${portfolioId}, pageNumber: ${page}: ${error.message}`, { stack: error.stack });
     if (error.response) {
       logger.error('Error response data:', error.response.data);
       logger.error('Error response status:', error.response.status);
