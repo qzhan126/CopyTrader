@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>交易记录展示 - 开平仓</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --bg-color: #f4f6f8; /* Slightly lighter background */
+            --text-color: #34495e; /* Softer text color */
+            --input-bg: #fff;
+            --input-border: #bdc3c7;
+            --table-header-bg: #34495e;
+            --table-row-hover: #e8f0f5;
+            --card-bg: #ffffff;
+            --shadow-color: rgba(0, 0, 0, 0.08);
+        }
+
+        * {
+            box-sizing: border-box; /* Better layout control */
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; /* Modern system fonts */
+            padding: 1rem; /* Reduced padding for mobile */
+            color: var(--text-color);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1350px;
+            margin: 0 auto;
+            padding: 0 1rem; /* Add horizontal padding for container content */
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            font-size: 1.8rem; /* Responsive font size */
+        }
+
+        .filters {
+            background-color: var(--card-bg);
+            padding: 1rem; /* Adjusted padding */
+            margin-bottom: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px var(--shadow-color);
+            display: flex;
+            flex-direction: column; /* Stack filters vertically on mobile by default */
+            gap: 1rem;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1; /* Allow filter groups to grow */
+        }
+
+        .filter-group label {
+            margin-bottom: 0.4rem; /* Adjusted margin */
+            font-weight: 600; /* Slightly bolder */
+            font-size: 0.85em;
+            color: var(--primary-color);
+        }
+
+        .filter-group input[type="text"], /* Kept for reference, but we are changing portfolio name to select */
+        .filter-group select {
+            padding: 0.75rem; /* Increased padding for better touch targets */
+            border: 1px solid var(--input-border);
+            border-radius: 6px; /* Slightly more rounded */
+            background-color: var(--input-bg);
+            font-size: 0.95em; /* Responsive font size */
+            width: 100%; /* Make selects take full width of their group */
+            -webkit-appearance: none; /* Remove default styling on iOS */
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat;
+            background-position: right .7em top 50%;
+            background-size: .65em auto;
+            padding-right: 2.5em; /* Make space for custom arrow */
+        }
+        
+        .filter-group input[type="text"]:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.15); /* Softer focus */
+        }
+
+        .table-wrapper { /* Added a wrapper for the table for better responsive handling */
+            width: 100%;
+            overflow-x: auto; /* This enables horizontal scrolling for the table */
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+
+        table {
+            width: 100%;
+            min-width: 900px; /* Minimum width before horizontal scroll kicks in */
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.8rem 1rem; /* Adjusted padding */
+            border-bottom: 1px solid #e0e0e0; /* Lighter border */
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        th {
+            background-color: var(--table-header-bg);
+            color: white;
+            text-transform: uppercase;
+            font-size: 0.75em; /* Smaller header font */
+            letter-spacing: 0.05em;
+            position: sticky;
+            top: 0;
+            z-index: 10; /* Ensure header is above other content */
+        }
+
+        tr:hover {
+            background-color: var(--table-row-hover);
+        }
+
+        /* Operation type styling */
+        .operation-open-long { color: #27ae60; font-weight: bold; }
+        .operation-close-long { color: #c0392b; }
+        .operation-open-short { color: #e74c3c; font-weight: bold; }
+        .operation-close-short { color: #2ecc71; }
+        .operation-unknown { color: #7f8c8d; }
+
+        /* Original direction/position styling (used for class but text is translated) */
+        .buy { /* Can add specific styling if needed, e.g., a small icon */ }
+        .sell { /* Can add specific styling if needed */ }
+
+        .profit.positive { color: var(--success-color); }
+        .profit.negative { color: var(--danger-color); }
+        
+        .portfolio { font-size: 0.9em; color: #555; } /* Slightly darker */
+        .status { text-align: center; font-size: 1.1rem; margin-top: 2rem; }
+        .loading { color: var(--primary-color); }
+        .error { color: var(--danger-color); padding: 1rem; background-color: #fdd; border: 1px solid var(--danger-color); border-radius: 6px;}
+        .no-results { text-align: center; padding: 2rem; color: #7f8c8d; font-style: italic;}
+
+        /* Responsive adjustments using Media Queries */
+        @media (min-width: 768px) { /* For tablets and larger */
+            body {
+                padding: 2rem; /* Restore more padding on larger screens */
+            }
+            h1 {
+                font-size: 2.2rem;
+            }
+            .filters {
+                flex-direction: row; /* Filters side-by-side */
+                align-items: flex-end; /* Align to bottom */
+            }
+            .filter-group select, .filter-group input[type="text"] {
+                min-width: 180px; /* Allow specific min-width on larger screens */
+                width: auto; /* Let them size based on content or flex properties */
+            }
+        }
+
+        @media (min-width: 1024px) { /* For desktops */
+             .filter-group {
+                max-width: 220px; /* Prevent filters from becoming too wide */
+             }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>交易记录展示</h1>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label for="portfolioNameFilter">组合名称:</label>
+                <select id="portfolioNameFilter">
+                    <option value="all">全部组合</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="profitFilter">盈利状态:</label>
+                <select id="profitFilter">
+                    <option value="all">全部</option>
+                    <option value="positive">有盈利</option>
+                    <option value="negative">有亏损</option>
+                    <option value="zero">无盈亏</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="operationTypeFilter">操作类型:</label>
+                <select id="operationTypeFilter">
+                    <option value="all">全部</option>
+                    <option value="open_long">开多</option>
+                    <option value="close_long">平多</option>
+                    <option value="open_short">开空</option>
+                    <option value="close_short">平空</option>
+                    <option value="unknown">未知操作</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="positionSideFilter">持仓方向 (原始):</label>
+                <select id="positionSideFilter">
+                    <option value="all">全部</option>
+                    <option value="LONG">多仓 (LONG)</option>
+                    <option value="SHORT">空仓 (SHORT)</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="sideFilter">交易方向 (原始):</label>
+                <select id="sideFilter">
+                    <option value="all">全部</option>
+                    <option value="BUY">买入 (BUY)</option>
+                    <option value="SELL">卖出 (SELL)</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="loading" class="status loading">正在加载交易数据...</div>
+        <div id="error" class="status error" style="display: none;"></div>
+        
+        <div class="table-wrapper" id="tableWrapper" style="display: none;"> 
+            <table id="tradesTable">
+                <thead>
+                    <tr>
+                        <th>交易对</th>
+                        <th>操作类型</th>
+                         <!--<th>方向 (原始)</th>-->
+                        <!--<th>持仓方向 (原始)</th>-->
+                        <th>价格</th>
+                        <th>已实现盈亏</th>
+                        <th>时间</th>
+                        <th>组合ID</th>
+                        <th>组合名称</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody">
+                </tbody>
+            </table>
+        </div>
+        <div id="noResults" class="no-results" style="display: none;">没有符合筛选条件的记录。</div>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000/trades"; // Ensure your API is running
+        const tbody = document.getElementById("tbody");
+        const loadingDiv = document.getElementById("loading");
+        const errorDiv = document.getElementById("error");
+        const tableWrapper = document.getElementById("tableWrapper"); // Updated ID
+        const noResultsDiv = document.getElementById("noResults");
+
+        const portfolioNameSelect = document.getElementById("portfolioNameFilter"); // Changed from Input to Select
+        const profitSelect = document.getElementById("profitFilter");
+        const positionSideSelect = document.getElementById("positionSideFilter");
+        const sideSelect = document.getElementById("sideFilter");
+        const operationTypeSelect = document.getElementById("operationTypeFilter");
+
+        let allTradesData = [];
+
+        const sideTranslations = { "BUY": "买入", "SELL": "卖出" };
+        const positionSideTranslations = { "LONG": "多仓", "SHORT": "空仓" };
+
+        function getOperationType(side, positionSide) {
+            const s = side.toUpperCase();
+            const ps = positionSide.toUpperCase();
+            if (s === "BUY" && ps === "LONG") return { text: "开多", class: "operation-open-long", value: "open_long" };
+            if (s === "SELL" && ps === "LONG") return { text: "平多", class: "operation-close-long", value: "close_long" };
+            if (s === "SELL" && ps === "SHORT") return { text: "开空", class: "operation-open-short", value: "open_short" };
+            if (s === "BUY" && ps === "SHORT") return { text: "平空", class: "operation-close-short", value: "close_short" };
+            return { text: "未知操作", class: "operation-unknown", value: "unknown" };
+        }
+
+        // --- New function to populate portfolio name select ---
+        function populatePortfolioNameFilter(trades) {
+            const uniquePortfolioNames = [...new Set(trades.map(trade => trade.portfolioName))].sort();
+            
+            // Clear existing options except the "All" option
+            while (portfolioNameSelect.options.length > 1) {
+                portfolioNameSelect.remove(1);
+            }
+
+            uniquePortfolioNames.forEach(name => {
+                const option = document.createElement("option");
+                option.value = name;
+                option.textContent = name;
+                portfolioNameSelect.appendChild(option);
+            });
+        }
+
+        async function fetchData() {
+            try {
+                loadingDiv.style.display = "block";
+                errorDiv.style.display = "none";
+                tableWrapper.style.display = "none";
+                noResultsDiv.style.display = "none";
+
+                console.log("开始请求数据:", API_URL);
+                const response = await fetch(API_URL);
+                console.log("响应状态码:", response.status);
+
+                if (!response.ok) {
+                    let errorResponseMessage = response.statusText;
+                    // ... (error handling same as before)
+                    try {
+                        const errorData = await response.json();
+                        errorResponseMessage = errorData.detail || JSON.stringify(errorData);
+                    } catch (e) {
+                        try {
+                             errorResponseMessage = await response.text();
+                        } catch (e_text) { console.error("Could not parse error response body");}
+                    }
+                    throw new Error(`HTTP 错误: ${response.status}. ${errorResponseMessage}`);
+                }
+
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    throw new Error("响应内容不是 JSON 格式");
+                }
+
+                allTradesData = await response.json();
+                console.log("成功获取数据:", allTradesData.length, "条记录");
+
+                populatePortfolioNameFilter(allTradesData); // --- Populate the new select ---
+                applyFiltersAndRender();
+            } catch (err) {
+                console.error("请求失败详情:", err);
+                loadingDiv.style.display = "none";
+                errorDiv.textContent = `加载失败: ${err.message}`;
+                errorDiv.style.display = "block";
+            }
+        }
+
+        function formatTimestamp(timestamp) {
+            const date = new Date(parseInt(timestamp)); 
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false
+            }).replace(/\//g, '-');
+        }
+        
+        function createTableRow(trade) {
+            const row = document.createElement("tr");
+            const profit = parseFloat(trade.realizedProfit);
+            const profitClass = profit > 0 ? "positive" : profit < 0 ? "negative" : "";
+            const displayOriginalSide = sideTranslations[trade.side.toUpperCase()] || trade.side;
+            const displayOriginalPositionSide = positionSideTranslations[trade.positionSide.toUpperCase()] || trade.positionSide;
+            const operation = getOperationType(trade.side, trade.positionSide);
+
+            row.innerHTML = `
+                <td>${trade.symbol}</td>
+                <td class="${operation.class}">${operation.text}</td>
+                <!-- <td class="${trade.side.toLowerCase()}">${displayOriginalSide}</td>-->
+                <!-- <td class="${trade.positionSide.toLowerCase()}">${displayOriginalPositionSide}</td> -->
+                <td>${parseFloat(trade.price).toFixed(4)}</td>
+                <td class="profit ${profitClass}">${profit.toFixed(4)}</td>
+                <td class="timestamp">${formatTimestamp(trade.time)}</td>
+                <td>${trade.portfolioId}</td>
+                <td class="portfolio">${trade.portfolioName}</td>
+            `;
+            return row;
+        }
+
+        function applyFiltersAndRender() {
+            const portfolioNameFilterValue = portfolioNameSelect.value; // Get value from select
+            const profitFilterValue = profitSelect.value;
+            const positionSideFilterValue = positionSideSelect.value;
+            const sideFilterValue = sideSelect.value;
+            const operationTypeFilterValue = operationTypeSelect.value;
+
+            const filteredTrades = allTradesData.filter(trade => {
+                const profit = parseFloat(trade.realizedProfit);
+                // Portfolio Name Filter - now checks for equality or "all"
+                const nameMatch = (portfolioNameFilterValue === "all" || trade.portfolioName === portfolioNameFilterValue);
+                
+                let profitMatch = true;
+                if (profitFilterValue === "positive") profitMatch = profit > 0;
+                else if (profitFilterValue === "negative") profitMatch = profit < 0;
+                else if (profitFilterValue === "zero") profitMatch = profit === 0;
+                
+                const originalPositionSideMatch = (positionSideFilterValue === "all" || trade.positionSide.toUpperCase() === positionSideFilterValue);
+                const originalSideMatch = (sideFilterValue === "all" || trade.side.toUpperCase() === sideFilterValue);
+                const currentOperation = getOperationType(trade.side, trade.positionSide);
+                const operationMatch = (operationTypeFilterValue === "all" || currentOperation.value === operationTypeFilterValue);
+
+                return nameMatch && profitMatch && originalPositionSideMatch && originalSideMatch && operationMatch;
+            });
+            renderTable(filteredTrades);
+        }
+
+        function renderTable(trades) {
+            tbody.innerHTML = "";
+            if (trades.length === 0) {
+                noResultsDiv.style.display = "block";
+                tableWrapper.style.display = "none";
+            } else {
+                noResultsDiv.style.display = "none";
+                trades.forEach(trade => tbody.appendChild(createTableRow(trade)));
+                tableWrapper.style.display = "block";
+            }
+            loadingDiv.style.display = "none";
+            errorDiv.style.display = "none";
+        }
+
+        // Event Listeners for filters
+        portfolioNameSelect.addEventListener("change", applyFiltersAndRender); // Changed from input
+        profitSelect.addEventListener("change", applyFiltersAndRender);
+        positionSideSelect.addEventListener("change", applyFiltersAndRender);
+        sideSelect.addEventListener("change", applyFiltersAndRender);
+        operationTypeSelect.addEventListener("change", applyFiltersAndRender);
+
+        document.addEventListener("DOMContentLoaded", () => {
+            fetchData();
+        });
+    </script>
+</body>
+</html>
